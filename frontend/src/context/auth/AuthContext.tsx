@@ -1,0 +1,149 @@
+"use client";
+
+import {
+	createElement,
+	createContext,
+	useCallback,
+	useContext,
+	useEffect,
+	useMemo,
+	useState,
+} from "react";
+import { usePathname } from "next/navigation";
+
+import { Session } from "@/types/auth";
+import { deleteSession } from "@/lib/auth/session";
+
+type AuthUser = Session["user"];
+
+type AuthSessionResponse = {
+	isAuthenticated: boolean;
+	user: AuthUser | null;
+	accessToken?: string;
+	error?: string;
+};
+
+type ApiEnvelope<T> = {
+	success: boolean;
+	message?: string;
+	data?: T;
+	errors?: unknown;
+};
+
+type AuthContextValue = {
+	user: AuthUser | null;
+	accessToken: string | null;
+	isAuthenticated: boolean;
+	isLoading: boolean;
+	error?: string;
+	refreshSession: () => Promise<void>;
+	clearSession: () => void;
+};
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+const readSession = async (): Promise<AuthSessionResponse> => {
+	const response = await fetch("/api/auth/session", {
+		method: "GET",
+		credentials: "include",
+		cache: "no-store",
+	});
+
+	if (!response.ok) {
+		return {
+			isAuthenticated: false,
+			user: null,
+			error: "Unable to verify session",
+		};
+	}
+
+	const payload = (await response.json().catch(() => null)) as
+		| AuthSessionResponse
+		| ApiEnvelope<AuthSessionResponse>
+		| null;
+
+	if (payload && typeof payload === "object" && "data" in payload) {
+		return {
+			isAuthenticated: Boolean(payload.data?.isAuthenticated),
+			user: payload.data?.user ?? null,
+			accessToken: payload.data?.accessToken,
+			error: payload.success
+				? payload.message
+				: (payload.message ?? "Unable to verify session"),
+		};
+	}
+
+	return (payload ?? {
+		isAuthenticated: false,
+		user: null,
+		error: "Unable to verify session",
+	}) as AuthSessionResponse;
+};
+
+export function AuthProvider({
+	children,
+	initialUser = null,
+}: {
+	children: React.ReactNode;
+	initialUser?: AuthUser | null;
+}) {
+	const [user, setUser] = useState<AuthUser | null>(initialUser);
+	const [accessToken, setAccessToken] = useState<string | null>(null);
+	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState<string | undefined>();
+	const pathname = usePathname();
+
+	const refreshSession = useCallback(async () => {
+		setIsLoading(true);
+		setError(undefined);
+
+		try {
+			const session = await readSession();
+			setUser(session.isAuthenticated ? session.user : null);
+			setAccessToken(session.isAuthenticated ? session.accessToken ?? null : null);
+			setError(session.error);
+		} catch {
+			setUser(null);
+			setAccessToken(null);
+			setError("Unable to verify session");
+		} finally {
+			setIsLoading(false);
+		}
+	}, []);
+
+	const clearSession = useCallback(() => {
+		setUser(null);
+		setAccessToken(null);
+		setError(undefined);
+		deleteSession();
+
+	}, []);
+
+	useEffect(() => {
+		void refreshSession();
+	}, [refreshSession, pathname]);
+
+	const value = useMemo<AuthContextValue>(
+		() => ({
+			user,
+			accessToken,
+			isAuthenticated: Boolean(user),
+			isLoading,
+			error,
+			refreshSession,
+			clearSession,
+		}),
+		[user, accessToken, isLoading, error, refreshSession, clearSession],
+	);
+
+	return createElement(AuthContext.Provider, { value }, children);
+}
+
+export function useAuth() {
+	const context = useContext(AuthContext);
+	if (!context) {
+		throw new Error("useAuth must be used inside AuthProvider");
+	}
+
+	return context;
+}

@@ -1,0 +1,9 @@
+node_modules
+.env
+.env.development
+.env.production
+.neon_local/
+/logs
+/prisma/generated
+.markitdown-src
+.venv-markitdown

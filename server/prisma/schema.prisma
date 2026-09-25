@@ -1,0 +1,263 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  UNISEX
+}
+
+enum TokenPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum ResourceType {
+  TEXT
+  UPLOAD
+  URL
+}
+
+enum ResourceStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum SessionStatus {
+  ACTIVE
+  ENDED
+}
+
+enum EvaluationType {
+  ROLLING
+  FINAL
+}
+
+// USER
+
+model User {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email            String   @unique @db.VarChar(255)
+  passwordHash     String?  @map("password_hash") @db.VarChar(255)
+  name             String   @db.VarChar(255)
+  avatarUrl        String?  @map("avatar_url") @db.Text
+  userBodyImageUrl String?  @map("user_body_image_url") @db.Text
+  age              Int?     @db.Integer
+  ethnicity        String?  @db.VarChar(100)
+  gender           Gender   @default(UNISEX)
+  interests        String[] @map("interests")
+  location         String?  @db.VarChar(255)
+
+  verificationToken          String?       @map("verification_token") @db.VarChar(255)
+  verificationTokenExpiresAt DateTime?     @map("verification_token_expires_at")
+  verificationTokenPurpose   TokenPurpose? @map("verification_token_purpose")
+  emailVerified              Boolean       @default(false) @map("email_verified")
+  isActive                   Boolean       @default(true) @map("is_active")
+
+  oauthProvider String? @map("oauth_provider") @db.VarChar(50)
+  oauthId       String? @map("oauth_id") @db.VarChar(255)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  refreshTokens   RefreshToken[]
+  resources       Resource[]
+  sessions        Session[]
+  analyticsEvents AnalyticsEvent[]
+
+  @@unique([oauthProvider, oauthId])
+  @@index([email])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model RefreshToken {
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+
+  token     String @unique @db.Text
+  sessionId String @unique @map("session_id")
+
+  userAgent String? @db.Text
+  ipAddress String? @db.VarChar(45)
+
+  isActive  Boolean  @default(true)
+  expiresAt DateTime @map("expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Resource {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String         @map("user_id") @db.Uuid
+  title      String         @db.VarChar(255)
+  sourceType ResourceType   @map("source_type")
+  mimeType   String?        @map("mime_type") @db.VarChar(100)
+  sourceUrl  String?        @map("source_url") @db.Text
+  storageKey String?        @map("storage_key") @db.Text
+  filePath   String?        @map("file_path") @db.Text
+  parsedText String?        @map("parsed_text") @db.Text
+  status     ResourceStatus @default(PENDING)
+  subject    String?        @db.VarChar(100)
+  topic      String?        @db.VarChar(150)
+  metadata   Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chunks     ResourceChunk[]
+  sessions   SessionResource[]
+  embeddings Embedding[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("resources")
+}
+
+model ResourceChunk {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resourceId     String   @map("resource_id") @db.Uuid
+  chunkIndex     Int      @map("chunk_index")
+  text           String   @db.Text
+  embeddingModel String?  @map("embedding_model") @db.VarChar(100)
+  vectorId       String?  @map("vector_id") @db.VarChar(100)
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  resource   Resource    @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  embeddings Embedding[]
+
+  @@index([resourceId])
+  @@index([vectorId])
+  @@map("resource_chunks")
+}
+
+model Session {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String        @map("user_id") @db.Uuid
+  subject   String?       @db.VarChar(100)
+  topic     String?       @db.VarChar(150)
+  goal      String?       @db.Text
+  status    SessionStatus @default(ACTIVE)
+  startedAt DateTime      @default(now()) @map("started_at")
+  endedAt   DateTime?     @map("ended_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transcriptChunks TranscriptChunk[]
+  evaluations      Evaluation[]
+  resources        SessionResource[]
+  embeddings       Embedding[]
+  analyticsEvents  AnalyticsEvent[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("sessions")
+}
+
+model TranscriptChunk {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId   String   @map("session_id") @db.Uuid
+  sequence    Int
+  text        String   @db.Text
+  startTimeMs Int?     @map("start_time_ms")
+  endTimeMs   Int?     @map("end_time_ms")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([sequence])
+  @@map("transcript_chunks")
+}
+
+model Evaluation {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId       String         @map("session_id") @db.Uuid
+  type            EvaluationType
+  content         String         @db.Text
+  summary         String?        @db.Text
+  strengths       Json?
+  weaknesses      Json?
+  missedConcepts  Json?          @map("missed_concepts")
+  followUp        Json?          @map("follow_up")
+  confidenceScore Float?         @map("confidence_score")
+  topicDrift      Boolean?       @map("topic_drift")
+  provider        String?        @db.VarChar(50)
+  model           String?        @db.VarChar(100)
+  metadata        Json?
+  createdAt       DateTime       @default(now()) @map("created_at")
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([type])
+  @@map("evaluations")
+}
+
+model Embedding {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId       String?  @map("session_id") @db.Uuid
+  resourceId      String?  @map("resource_id") @db.Uuid
+  resourceChunkId String?  @map("resource_chunk_id") @db.Uuid
+  vector          Json
+  model           String?  @db.VarChar(100)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  session       Session?       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  resource      Resource?      @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  resourceChunk ResourceChunk? @relation(fields: [resourceChunkId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([resourceId])
+  @@index([resourceChunkId])
+  @@map("embeddings")
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  sessionId String?  @map("session_id") @db.Uuid
+  event     String   @db.VarChar(150)
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session Session? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([event])
+  @@map("analytics_events")
+}
+
+model SessionResource {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId  String   @map("session_id") @db.Uuid
+  resourceId String   @map("resource_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  session  Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, resourceId])
+  @@index([resourceId])
+  @@map("session_resources")
+}
