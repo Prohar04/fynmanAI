@@ -23,7 +23,7 @@ services:
     region: oregon
     dockerfilePath: ./server/Dockerfile
     dockerContext: ./server
-    healthCheckPath: /health
+    healthCheckPath: / # '/' responds instantly; /health aggregates deps
     envVars:
       - key: NODE_ENV
         value: production
