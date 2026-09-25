@@ -38,10 +38,12 @@ const io = new SocketServer(httpServer, {
 });
 
 registerRealtimeSocket(io);
-startRetentionScheduler();
-
-const server = httpServer.listen(PORT, () => {
-  logger.info(`API server listening on ${PORT}`);
+// Bind the port before any other startup work so platform port scans
+// (e.g. Render) detect an open port immediately. Bind on 0.0.0.0 so the
+// socket is reachable from outside the container.
+const server = httpServer.listen(Number(PORT), '0.0.0.0', () => {
+  logger.info(`API server listening on 0.0.0.0:${PORT}`);
+  startRetentionScheduler();
 });
 
 const shutdown = async (signal: string) => {
