@@ -32,7 +32,7 @@ trap cleanup EXIT INT TERM
 # away. Running migrations before this delays port binding, and hosts such as
 # Render cancel the deploy with "no open ports detected".
 echo "Starting API server"
-bun src/index.ts &
+bun --smol src/index.ts &
 api_pid=$!
 
 echo "Running database migrations"
@@ -43,7 +43,7 @@ else
 fi
 
 echo "Starting background workers"
-bun src/worker.ts &
+bun --smol src/worker.ts &
 worker_pid=$!
 
 wait -n "$api_pid" "$worker_pid"

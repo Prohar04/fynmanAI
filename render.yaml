@@ -58,6 +58,10 @@ services:
       - key: COOKIE_SAME_SITE
         value: none
 
+      # Keep worker memory down on the 512 MB instance
+      - key: AUDIO_PROCESSING_CONCURRENCY
+        value: 1
+
       # MVP feature flags
       - key: ENABLE_AUDIO_PROCESSING_QUEUE
         value: true
