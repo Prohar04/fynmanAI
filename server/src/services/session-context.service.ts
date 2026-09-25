@@ -140,7 +140,9 @@ export const resolveAiContext = async (params: {
   sessionResources?: SessionResourceContext[];
   qdrantLimit?: number;
 }): Promise<RetrievedContextChunk[]> => {
-  const fromParsed = buildContextFromParsedResources(params.sessionResources || []);
+  const fromParsed = buildContextFromParsedResources(
+    params.sessionResources || []
+  );
 
   const query = params.transcript?.trim();
   const canQueryQdrant = Boolean(query && env.QDRANT_URL);

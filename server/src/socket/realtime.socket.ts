@@ -37,7 +37,10 @@ const getTokenFromSocket = (socket: Socket): string | null => {
 };
 
 export const registerRealtimeSocket = (io: Server) => {
-  const realtimeAnalysisTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const realtimeAnalysisTimers = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
   const sessionMemoryMap = new Map<string, SocketLearningSessionState>();
 
   type SocketLearningSessionState = {
@@ -72,8 +75,6 @@ export const registerRealtimeSocket = (io: Server) => {
       return next(new Error('Unauthorized'));
     }
   });
-   
-  
 
   const emitLlmResponse = (
     sessionId: string,
@@ -87,13 +88,19 @@ export const registerRealtimeSocket = (io: Server) => {
     });
   };
 
-  const normalizeState = (state?: SocketLearningSessionState): SocketLearningSessionState => ({
+  const normalizeState = (
+    state?: SocketLearningSessionState
+  ): SocketLearningSessionState => ({
     currentQuestion: state?.currentQuestion ?? null,
     currentConceptId: state?.currentConceptId ?? null,
     questionDepth: state?.questionDepth ?? 0,
     failedAttempts: state?.failedAttempts ?? 0,
-    detectedGaps: Array.isArray(state?.detectedGaps) ? state.detectedGaps.filter(Boolean) : [],
-    masteredConcepts: Array.isArray(state?.masteredConcepts) ? state.masteredConcepts.filter(Boolean) : [],
+    detectedGaps: Array.isArray(state?.detectedGaps)
+      ? state.detectedGaps.filter(Boolean)
+      : [],
+    masteredConcepts: Array.isArray(state?.masteredConcepts)
+      ? state.masteredConcepts.filter(Boolean)
+      : [],
     conversationHistory: Array.isArray(state?.conversationHistory)
       ? state.conversationHistory.filter(
           entry =>
@@ -114,9 +121,22 @@ export const registerRealtimeSocket = (io: Server) => {
   ) => {
     const current = normalizeState(sessionMemoryMap.get(sessionId));
     const incoming = normalizeState(snapshot);
-    const mergedHistory = [...(current.conversationHistory || []), ...(incoming.conversationHistory || [])].slice(-12);
-    const mergedGaps = Array.from(new Set([...(current.detectedGaps || []), ...(incoming.detectedGaps || [])]));
-    const mergedMastered = Array.from(new Set([...(current.masteredConcepts || []), ...(incoming.masteredConcepts || [])]));
+    const mergedHistory = [
+      ...(current.conversationHistory || []),
+      ...(incoming.conversationHistory || []),
+    ].slice(-12);
+    const mergedGaps = Array.from(
+      new Set([
+        ...(current.detectedGaps || []),
+        ...(incoming.detectedGaps || []),
+      ])
+    );
+    const mergedMastered = Array.from(
+      new Set([
+        ...(current.masteredConcepts || []),
+        ...(incoming.masteredConcepts || []),
+      ])
+    );
 
     const merged: SocketLearningSessionState = {
       ...current,
@@ -124,8 +144,14 @@ export const registerRealtimeSocket = (io: Server) => {
       conversationHistory: mergedHistory,
       detectedGaps: mergedGaps,
       masteredConcepts: mergedMastered,
-      failedAttempts: Math.max(current.failedAttempts || 0, incoming.failedAttempts || 0),
-      questionDepth: Math.max(current.questionDepth || 0, incoming.questionDepth || 0),
+      failedAttempts: Math.max(
+        current.failedAttempts || 0,
+        incoming.failedAttempts || 0
+      ),
+      questionDepth: Math.max(
+        current.questionDepth || 0,
+        incoming.questionDepth || 0
+      ),
     };
 
     sessionMemoryMap.set(sessionId, merged);
@@ -184,12 +210,22 @@ export const registerRealtimeSocket = (io: Server) => {
     phase: 'start' | 'realtime'
   ) => {
     const memory = mergeSessionMemory(sessionId);
-    const currentQuestion = response.question?.trim() || memory.currentQuestion || null;
-    const detectedGaps = Array.from(new Set([...(memory.detectedGaps || []), ...(response.detected_gaps || [])]));
+    const currentQuestion =
+      response.question?.trim() || memory.currentQuestion || null;
+    const detectedGaps = Array.from(
+      new Set([
+        ...(memory.detectedGaps || []),
+        ...(response.detected_gaps || []),
+      ])
+    );
     const hasGaps = detectedGaps.length > 0;
     const masteredConcepts = new Set(memory.masteredConcepts || []);
 
-    if (!hasGaps && memory.currentConceptId && (memory.questionDepth || 0) >= 1) {
+    if (
+      !hasGaps &&
+      memory.currentConceptId &&
+      (memory.questionDepth || 0) >= 1
+    ) {
       masteredConcepts.add(memory.currentConceptId);
     }
 
@@ -199,7 +235,8 @@ export const registerRealtimeSocket = (io: Server) => {
       detectedGaps,
       masteredConcepts: Array.from(masteredConcepts),
       failedAttempts: hasGaps ? (memory.failedAttempts || 0) + 1 : 0,
-      questionDepth: phase === 'start' ? 1 : (memory.questionDepth || 0) + (hasGaps ? 0 : 1),
+      questionDepth:
+        phase === 'start' ? 1 : (memory.questionDepth || 0) + (hasGaps ? 0 : 1),
       triggerMasteryFallback: hasGaps && (memory.failedAttempts || 0) + 1 >= 5,
     };
 
@@ -231,7 +268,10 @@ export const registerRealtimeSocket = (io: Server) => {
       return null;
     }
 
-    const mergedState = mergeSessionMemory(params.sessionId, params.sessionState);
+    const mergedState = mergeSessionMemory(
+      params.sessionId,
+      params.sessionState
+    );
     const sessionResources = await resolveTurnResources(
       params.sessionId,
       params.resources
@@ -318,7 +358,10 @@ export const registerRealtimeSocket = (io: Server) => {
 
       clearScheduledRealtimeResponse(payload.sessionId);
       await endSession(payload.sessionId);
-      const memory = mergeSessionMemory(payload.sessionId, payload.sessionState);
+      const memory = mergeSessionMemory(
+        payload.sessionId,
+        payload.sessionState
+      );
 
       const metadata = await getSessionMetadata(payload.sessionId);
       const evaluation = await generateFinalEvaluation({
@@ -389,7 +432,9 @@ export const registerRealtimeSocket = (io: Server) => {
           sessionResources: metadata?.resources,
           sessionState: payload?.sessionState,
         });
-        const parsedStart = JSON.parse(startResponse.content) as { question?: string };
+        const parsedStart = JSON.parse(startResponse.content) as {
+          question?: string;
+        };
         mergeSessionMemory(session.id, {
           ...payload?.sessionState,
           currentQuestion: parsedStart.question || null,
@@ -449,14 +494,21 @@ export const registerRealtimeSocket = (io: Server) => {
           endTimeMs: payload?.endTimeMs,
         });
 
-        const memory = updateFromUserText(sessionId, transcript.text, payload?.sessionState);
+        const memory = updateFromUserText(
+          sessionId,
+          transcript.text,
+          payload?.sessionState
+        );
 
         io.to(sessionId).emit('transcript:chunk', {
           sessionId,
           chunk,
         });
 
-        if (payload?.endMessage !== 'user:pause' && payload?.endMessage !== 'user:end') {
+        if (
+          payload?.endMessage !== 'user:pause' &&
+          payload?.endMessage !== 'user:end'
+        ) {
           scheduleRealtimeResponse({
             sessionId,
             userId: socket.data.userId,
@@ -502,7 +554,11 @@ export const registerRealtimeSocket = (io: Server) => {
           endTimeMs: payload?.endTimeMs,
         });
 
-        const memory = updateFromUserText(sessionId, text, payload?.sessionState);
+        const memory = updateFromUserText(
+          sessionId,
+          text,
+          payload?.sessionState
+        );
 
         io.to(sessionId).emit('transcript:chunk', {
           sessionId,

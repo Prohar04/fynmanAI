@@ -22,7 +22,7 @@ import {
   createRateLimitMiddleware,
   rateLimitPresets,
 } from '#src/middlewares/rate-limit.middleware.ts';
-import  pingRoutes from './routes/ping.route.ts';
+import pingRoutes from './routes/ping.route.ts';
 
 const app = express();
 app.use(helmet());

@@ -9,26 +9,23 @@ const optionalNumber = z.preprocess(
   emptyToUndefined,
   z.coerce.number().optional()
 );
-const optionalBoolean = z.preprocess(
-  value => {
-    const normalized = emptyToUndefined(value);
-    if (typeof normalized !== 'string') {
-      return normalized;
-    }
-
-    const lower = normalized.trim().toLowerCase();
-    if (['true', '1', 'yes', 'on'].includes(lower)) {
-      return true;
-    }
-
-    if (['false', '0', 'no', 'off'].includes(lower)) {
-      return false;
-    }
-
+const optionalBoolean = z.preprocess(value => {
+  const normalized = emptyToUndefined(value);
+  if (typeof normalized !== 'string') {
     return normalized;
-  },
-  z.coerce.boolean().optional()
-);
+  }
+
+  const lower = normalized.trim().toLowerCase();
+  if (['true', '1', 'yes', 'on'].includes(lower)) {
+    return true;
+  }
+
+  if (['false', '0', 'no', 'off'].includes(lower)) {
+    return false;
+  }
+
+  return normalized;
+}, z.coerce.boolean().optional());
 
 const envSchema = z.object({
   NODE_ENV: z

@@ -59,9 +59,7 @@ export const transcribeAudioBuffer = async (params: {
   if (!response.ok) {
     const errorText = await response.text();
 
-    throw new Error(
-      `Groq transcription failed: ${errorText}`
-    );
+    throw new Error(`Groq transcription failed: ${errorText}`);
   }
 
   const data = (await response.json()) as {
