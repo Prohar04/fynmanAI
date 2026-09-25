@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 # Use the venv baked into the image (Linux). Ignore invalid host paths e.g. Windows Scripts\python.exe.
 DOCKER_PYTHON="/app/.venv-markitdown/bin/python"
@@ -28,12 +28,19 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-echo "Running database migrations"
-bunx prisma migrate deploy
-
+# Start the API first so the platform's port scan sees an open port right
+# away. Running migrations before this delays port binding, and hosts such as
+# Render cancel the deploy with "no open ports detected".
 echo "Starting API server"
 bun src/index.ts &
 api_pid=$!
+
+echo "Running database migrations"
+if bunx prisma migrate deploy; then
+	echo "Database migrations applied"
+else
+	echo "WARNING: prisma migrate deploy failed; the API is still serving but the schema may be out of date"
+fi
 
 echo "Starting background workers"
 bun src/worker.ts &
