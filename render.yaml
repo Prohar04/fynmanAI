@@ -67,13 +67,13 @@ services:
 
       # Set these in the Render dashboard (not stored in git)
       - key: FRONTEND_URL
-        sync: false
+        value: https://fynman-ai-six.vercel.app
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_CALLBACK_URL
-        sync: false
+        value: https://fynman-api.onrender.com/api/auth/google/callback
       - key: OPEN_ROUTER_APIKEY
         sync: false
       - key: UPLOADTHING_TOKEN
