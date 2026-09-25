@@ -1,9 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "builds": [
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/next"
+  "git": {
+    "deploymentEnabled": {
+      "main": false
     }
-  ]
+  }
 }
